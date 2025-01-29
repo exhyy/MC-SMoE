@@ -325,10 +325,19 @@ def _merge_mlp_experts_by_usage_frequency_weighting(
             [ffn.experts[expert_idx].w3.weight * usage_frequencies[expert_idx]
              for expert_idx in expert_indices], dim=0
         )
-        w1_weight = torch.sum(w1_weight_list, dim=0) / (torch.sum(usage_frequencies[expert_indices], dim=0) + FP32_EPS)
-        w2_weight = torch.sum(w2_weight_list, dim=0) / (torch.sum(usage_frequencies[expert_indices], dim=0) + FP32_EPS)
-        w3_weight = torch.sum(w3_weight_list, dim=0) / (torch.sum(usage_frequencies[expert_indices], dim=0) + FP32_EPS)
+        # w1_weight = torch.sum(w1_weight_list, dim=0) / (torch.sum(usage_frequencies[expert_indices], dim=0) + FP32_EPS)
+        # w2_weight = torch.sum(w2_weight_list, dim=0) / (torch.sum(usage_frequencies[expert_indices], dim=0) + FP32_EPS)
+        # w3_weight = torch.sum(w3_weight_list, dim=0) / (torch.sum(usage_frequencies[expert_indices], dim=0) + FP32_EPS)
+        # print(f'>>>>>>>> {w1_weight.dtype=}, {w2_weight.dtype=}, {w3_weight.dtype=}, {w1_weight_list.dtype=}, {usage_frequencies.dtype=}')
+        w1_weight = torch.sum(w1_weight_list.to(torch.float32), dim=0) / (torch.sum(usage_frequencies[expert_indices].to(torch.float32), dim=0) + FP32_EPS)
+        w2_weight = torch.sum(w2_weight_list.to(torch.float32), dim=0) / (torch.sum(usage_frequencies[expert_indices].to(torch.float32), dim=0) + FP32_EPS)
+        w3_weight = torch.sum(w3_weight_list.to(torch.float32), dim=0) / (torch.sum(usage_frequencies[expert_indices].to(torch.float32), dim=0) + FP32_EPS)
 
+        dtype = ffn.experts[expert_indices[0]].w1.weight.dtype
+        if dtype != torch.float32:
+            w1_weight = w1_weight.to(dtype)
+            w2_weight = w2_weight.to(dtype)
+            w3_weight = w3_weight.to(dtype)
         ffn.experts[expert_indices[0]].w1.weight.copy_(w1_weight)
         ffn.experts[expert_indices[0]].w2.weight.copy_(w2_weight)
         ffn.experts[expert_indices[0]].w3.weight.copy_(w3_weight)

@@ -3,7 +3,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import BitsAndBytesConfig
 
 def main():
-    path = '/opt/data/private/hyy/MC-SMoE/hf_models/Mixtral-8x7B-Instruct-v0.1_merged-group2'
+    path = '/opt/data/private/hyy/hf_models/Mixtral-8x7B-Instruct-v0.1_merged-group4'
     quantization_config = BitsAndBytesConfig(load_in_8bit=True)
     model = AutoModelForCausalLM.from_pretrained(
         path,
