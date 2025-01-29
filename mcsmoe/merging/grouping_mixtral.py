@@ -198,7 +198,7 @@ class ExpertsGrouperForMixtral(object):
         model.eval()
         config = model.config
         for batch in tqdm(dataloader, desc=f"[MC-SMoE] Evaluating routing distribution"):
-            batch = {k: v.cuda() for k, v in batch.items()}
+            # batch = {k: v.cuda() for k, v in batch.items()}
             if "labels" in batch:
                 # We don't need to compute loss here, so remove the labels
                 batch.pop("labels")
@@ -275,7 +275,7 @@ class ExpertsGrouperForMixtral(object):
         model.eval()
         all_router_logits = []
         for batch in tqdm(dataloader, desc=f"[MC-SMoE] Running inference to get routing logits"):
-            batch = {k: v.cuda() for k, v in batch.items()}
+            # batch = {k: v.cuda() for k, v in batch.items()}
             if "labels" in batch:
                 # We don't need to compute loss here, so remove the labels
                 batch.pop("labels")
@@ -303,7 +303,14 @@ def _merge_mlp_experts_by_usage_frequency_weighting(
         ffn: MixtralSparseMoeBlock,
         group_labels: torch.LongTensor,
         usage_frequencies: torch.Tensor,
+        run_on_cpu: bool = False,
+        shared: bool = True,
 ) -> MixtralSparseMoeBlock:
+    if run_on_cpu and next(ffn.parameters()).device != torch.device('meta'):
+        ffn = ffn.to('cpu')
+        group_labels = group_labels.to('cpu')
+        usage_frequencies = usage_frequencies.to('cpu')
+
     for label in group_labels.unique():
         expert_indices = torch.where(group_labels == label)[0]
         w1_weight_list = torch.stack(
@@ -327,8 +334,13 @@ def _merge_mlp_experts_by_usage_frequency_weighting(
         ffn.experts[expert_indices[0]].w3.weight.copy_(w3_weight)
 
         for expert_idx in expert_indices[1:]:
-            # Binding merged experts to the first of them
-            ffn.experts[expert_idx] = ffn.experts[expert_indices[0]]
+            if shared:
+                # Binding merged experts to the first of them
+                ffn.experts[expert_idx] = ffn.experts[expert_indices[0]]
+            else:
+                ffn.experts[expert_idx].w1.weight.copy_(w1_weight)
+                ffn.experts[expert_idx].w2.weight.copy_(w2_weight)
+                ffn.experts[expert_idx].w3.weight.copy_(w3_weight)
 
     return ffn
 
@@ -366,5 +378,7 @@ def merge_by_groups_with_usage_weighted(
             ffn=model.model.layers[layer_idx].block_sparse_moe,
             group_labels=group_labels,
             usage_frequencies=usage_frequencies,
+            run_on_cpu=True,
+            shared=False,
         )
     return model

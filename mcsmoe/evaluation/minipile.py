@@ -15,13 +15,15 @@ from transformers import (
 )
 
 
+MILIPILE_DATASET_PATH = '/opt/data/private/hyy/hf_datasets/minipile'
+
 def get_minipile_dataloder(
         tokenizer: PreTrainedTokenizer,
         block_size: int,
         batch_size: int,
         subset_ratio: Optional[float] = 1.0,
 ) -> DataLoader:
-    dataset = load_dataset("JeanKaddour/minipile", split="validation")
+    dataset = load_dataset(MILIPILE_DATASET_PATH, split="validation")
     column_names = dataset.column_names
 
     dataset = dataset.map(
