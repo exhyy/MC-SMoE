@@ -7,9 +7,13 @@ import torch
 from fire import Fire
 from transformers import MixtralForCausalLM, AutoTokenizer
 
+import sys
+sys.path.extend(['.', '..'])
 from mcsmoe.evaluation import get_minipile_dataloder, evaluate_minipile_perplexity, evaluate_fewshot
 from mcsmoe.merging.grouping_mixtral import ExpertsGrouperForMixtral, merge_by_groups_with_usage_weighted
 
+
+MIXTRAL_MODEL_PATH = '/opt/data/private/hyy/hf_models/Mixtral-8x7B-Instruct-v0.1'
 
 def evaluate_mcsmoe(
         task: str,
@@ -17,13 +21,17 @@ def evaluate_mcsmoe(
         num_fewshot: Optional[int] = 5,
         eval_batch_size: Optional[int] = 32,
         output_path: Optional[str] = None,
+        save_path: Optional[str] = None,
+        shared_experts: Optional[bool] = True,
 ):
+    print(f'>>>>>>>>>>>>> {shared_experts=}')
     eval_ppl = (task == "minipile")
-    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mixtral-8x7B-v0.1")
+    tokenizer = AutoTokenizer.from_pretrained(MIXTRAL_MODEL_PATH)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     model = MixtralForCausalLM.from_pretrained(
-        "mistralai/Mixtral-8x7B-v0.1",
-        torch_dtype=torch.bfloat16, device_map="auto"
+        MIXTRAL_MODEL_PATH,
+        torch_dtype=torch.bfloat16,
+        # device_map="auto"
     )
 
     dataloader_for_merging = get_minipile_dataloder(
@@ -44,7 +52,7 @@ def evaluate_mcsmoe(
     )
 
     model = merge_by_groups_with_usage_weighted(
-        model, grouper=grouper, merging_layers=list(range(0, model.config.num_hidden_layers))
+        model, grouper=grouper, merging_layers=list(range(0, model.config.num_hidden_layers), shared_experts=shared_experts)
     )
 
     print(f"[MC-SMoE] ========= Grouping results ========= ")
@@ -52,6 +60,11 @@ def evaluate_mcsmoe(
         print(f"Group {name}: {state.tolist()} (DOMs are {dom_experts[name]})")
 
     print("[MC-SMoE] Number of parameters after merging:", model.num_parameters())
+
+    if save_path:
+        print(f"[MC-SMoE] Saving merged model to {save_path}")
+        model.save_pretrained(save_path)
+        tokenizer.save_pretrained(save_path)
 
     if eval_ppl:
         evaluate_minipile_perplexity(
