@@ -52,7 +52,7 @@ def evaluate_mcsmoe(
     )
 
     model = merge_by_groups_with_usage_weighted(
-        model, grouper=grouper, merging_layers=list(range(0, model.config.num_hidden_layers), shared_experts=shared_experts)
+        model, grouper=grouper, merging_layers=list(range(0, model.config.num_hidden_layers)), shared_experts=shared_experts
     )
 
     print(f"[MC-SMoE] ========= Grouping results ========= ")
