@@ -85,7 +85,8 @@ def evaluate_minipile_perplexity(
 
     loss_list = []
     for batch_idx, batch in enumerate(tqdm(data_loader, desc=f"Evaluating")):
-        batch = {k: v.cuda() for k, v in batch.items()}
+        if next(model.parameters()).device != torch.device('cpu'):
+            batch = {k: v.cuda() for k, v in batch.items()}
         with torch.no_grad():
             outputs = model(**batch, output_router_logits=False)
         loss_list.append(outputs.loss.item())

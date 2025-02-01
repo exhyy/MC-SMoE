@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Author: pingzhili
 # @Time: 2024/2/18
+import os
 from typing import Optional
 
 import torch
@@ -23,6 +24,7 @@ def evaluate_mcsmoe(
         output_path: Optional[str] = None,
         save_path: Optional[str] = None,
         shared_experts: Optional[bool] = True,
+        cache_dir: Optional[str] = None,
 ):
     print(f'>>>>>>>>>>>>> {shared_experts=}')
     eval_ppl = (task == "minipile")
@@ -45,8 +47,25 @@ def evaluate_mcsmoe(
     print(f"[MC-SMoE] Merging into average {num_average_groups} groups...")
 
     grouper = ExpertsGrouperForMixtral(config=model.config, similarity_base="router-logits")
-    grouper.compute_all_similarities(model, dataloader_for_merging)
-    grouper.compute_all_usages(model, dataloader_for_merging)
+    if cache_dir is not None:
+        similarity_loaded = grouper.load_similarity_state_dict(cache_dir)
+        if similarity_loaded:
+            print(f"[MC-SMoE] Similarity state dict loaded, skipping computation")
+        else:
+            print(f"[MC-SMoE] Similarity state dict NOT loaded, start computing...")
+            grouper.compute_all_similarities(model, dataloader_for_merging)
+            grouper.save_similarity_state_dict(cache_dir)
+    
+        usage_loaded = grouper.load_usage_frequency_state_dict(cache_dir)
+        if usage_loaded:
+            print(f"[MC-SMoE] Usage state dict loaded, skipping computation")
+        else:
+            print(f"[MC-SMoE] Usage state dict NOT loaded, start computing...")
+            grouper.compute_all_usages(model, dataloader_for_merging)
+            grouper.save_usage_frequency_state_dict(cache_dir)
+    else:
+        grouper.compute_all_similarities(model, dataloader_for_merging)
+        grouper.compute_all_usages(model, dataloader_for_merging)
     dom_experts = grouper.group_experts_globally_from_dominant_experts(
         num_average_groups=num_average_groups, merging_layers=list(range(0, model.config.num_hidden_layers))
     )

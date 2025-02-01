@@ -64,11 +64,37 @@ class ExpertsGrouperForMixtral(object):
     def similarity_state_dict(self) -> Dict[str, torch.Tensor]:
         return deepcopy(self._similarity_state_dict)
 
+    def save_similarity_state_dict(self, save_dir: str):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        torch.save(self._similarity_state_dict, os.path.join(save_dir, "similarity_state_dict.pt"))
+
+    def load_similarity_state_dict(self, load_dir: str) -> bool:
+        load_path = os.path.join(load_dir, "similarity_state_dict.pt")
+        if os.path.exists(load_path):
+            self._similarity_state_dict = torch.load(load_path)
+            return True
+        else:
+            return False
+
     def group_state_dict(self) -> Dict[str, torch.LongTensor]:
         return deepcopy(self._group_state_dict)
 
     def usage_frequency_state_dict(self) -> Dict[str, torch.Tensor]:
         return deepcopy(self._usage_frequency_state_dict)
+
+    def save_usage_frequency_state_dict(self, save_dir: str):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        torch.save(self._usage_frequency_state_dict, os.path.join(save_dir, "usage_frequency_state_dict.pt"))
+
+    def load_usage_frequency_state_dict(self, load_dir: str) -> bool:
+        load_path = os.path.join(load_dir, "usage_frequency_state_dict.pt")
+        if os.path.exists(load_path):
+            self._usage_frequency_state_dict = torch.load(load_path)
+            return True
+        else:
+            return False
 
     def save_similarity(self, mlp_name: str, i: int, j: int, similarity: float):
         self._similarity_state_dict[mlp_name][i, j] = similarity
@@ -343,9 +369,9 @@ def _merge_mlp_experts_by_usage_frequency_weighting(
                 # Binding merged experts to the first of them
                 ffn.experts[expert_idx] = ffn.experts[expert_indices[0]]
             else:
-                ffn.experts[expert_indices[0]].w1.weight.copy_(w1_weight)
-                ffn.experts[expert_indices[0]].w2.weight.copy_(w2_weight)
-                ffn.experts[expert_indices[0]].w3.weight.copy_(w3_weight)
+                ffn.experts[expert_idx].w1.weight.copy_(w1_weight)
+                ffn.experts[expert_idx].w2.weight.copy_(w2_weight)
+                ffn.experts[expert_idx].w3.weight.copy_(w3_weight)
 
     return ffn
 
