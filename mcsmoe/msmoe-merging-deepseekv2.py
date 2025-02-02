@@ -22,6 +22,7 @@ def evaluate_mcsmoe(
         num_fewshot: Optional[int] = 5,
         eval_batch_size: Optional[int] = 32,
         output_path: Optional[str] = None,
+        save_path: Optional[str] = None,
 ):
     eval_ppl = (task == "minipile")
     tokenizer = AutoTokenizer.from_pretrained(DEEPSEEPV2_MODEL_PATH)
@@ -58,6 +59,11 @@ def evaluate_mcsmoe(
         print(f"Group {name}: {state.tolist()} (DOMs are {dom_experts[name]})")
 
     print("[MC-SMoE] Number of parameters after merging:", model.num_parameters())
+
+    if save_path:
+        print(f"[MC-SMoE] Saving merged model to {save_path}")
+        model.save_pretrained(save_path)
+        tokenizer.save_pretrained(save_path)
 
     if eval_ppl:
         evaluate_minipile_perplexity(

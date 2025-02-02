@@ -315,6 +315,7 @@ def _merge_mlp_experts_by_usage_frequency_weighting(
         ffn,
         group_labels: torch.LongTensor,
         usage_frequencies: torch.Tensor,
+        shared: bool = True,
 ):
     for label in group_labels.unique():
         expert_indices = torch.where(group_labels == label)[0]
@@ -339,8 +340,13 @@ def _merge_mlp_experts_by_usage_frequency_weighting(
         ffn.experts[expert_indices[0]].up_proj.weight.copy_(up_proj_weight)
 
         for expert_idx in expert_indices[1:]:
-            # Binding merged experts to the first of them
-            ffn.experts[expert_idx] = ffn.experts[expert_indices[0]]
+            if shared:
+                # Binding merged experts to the first of them
+                ffn.experts[expert_idx] = ffn.experts[expert_indices[0]]
+            else:
+                ffn.experts[expert_idx].gate_proj.weight.copy_(gate_proj_weight)
+                ffn.experts[expert_idx].down_proj.weight.copy_(down_proj_weight)
+                ffn.experts[expert_idx].up_proj.weight.copy_(up_proj_weight)
 
     return ffn
 
@@ -378,5 +384,6 @@ def merge_by_groups_with_usage_weighted(
             ffn=model.model.layers[layer_idx].mlp,
             group_labels=group_labels,
             usage_frequencies=usage_frequencies,
+            shared=False,
         )
     return model
